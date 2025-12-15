@@ -1,9 +1,14 @@
-// REEMPLAZA ESTO CON TUS DATOS DE SUPABASE (Los mismos del .env de Flutter)
+// TUS CREDENCIALES (Asegúrate de que sean las correctas)
 const SUPABASE_URL = 'https://dusuulvonleasrpbjhed.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1c3V1bHZvbmxlYXNycGJqaGVkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUzMTc4NzUsImV4cCI6MjA4MDg5Mzg3NX0.bSV9-9gqXZCtWrxGjYo_7QWxjJxtn_h312yjuEPIgn8';
 
+// Inicializar el cliente de Supabase
+const { createClient } = supabase;
+const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
 document.getElementById('resetForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+
     const password = document.getElementById('password').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
     const errorDiv = document.getElementById('error');
@@ -12,9 +17,11 @@ document.getElementById('resetForm').addEventListener('submit', async (e) => {
     const btnText = document.getElementById('btnText');
     const btnLoader = document.getElementById('btnLoader');
 
+    // Resetear mensajes
     errorDiv.style.display = 'none';
     successDiv.style.display = 'none';
 
+    // Validaciones básicas
     if (password !== confirmPassword) {
         errorDiv.textContent = 'Las contraseñas no coinciden';
         errorDiv.style.display = 'block';
@@ -26,48 +33,34 @@ document.getElementById('resetForm').addEventListener('submit', async (e) => {
         return;
     }
 
-    // Obtener access token de la URL (el hash que pone Supabase)
-    const hash = window.location.hash.substring(1);
-    const params = new URLSearchParams(hash);
-    const accessToken = params.get('access_token');
-
-    if (!accessToken) {
-        errorDiv.textContent = 'Token inválido o expirado. Solicita un nuevo correo.';
-        errorDiv.style.display = 'block';
-        return;
-    }
-
+    // UI Loading
     submitBtn.disabled = true;
     btnText.style.display = 'none';
     btnLoader.style.display = 'inline-block';
 
     try {
-        // Llamada directa a la API de Supabase para actualizar el usuario
-        const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': SUPABASE_KEY,
-                'Authorization': `Bearer ${accessToken}`
-            },
-            body: JSON.stringify({ password })
+        // La librería detecta automáticamente el "?code=" en la URL y recupera la sesión.
+        // Solo tenemos que pedirle que actualice el usuario.
+        const { data, error } = await _supabase.auth.updateUser({
+            password: password
         });
 
-        if (response.ok) {
-            successDiv.textContent = '¡Contraseña actualizada exitosamente!';
-            successDiv.style.display = 'block';
-            document.getElementById('resetForm').reset();
-            // Opcional: Cerrar ventana después de unos segundos
-            setTimeout(() => {
-                window.close();
-            }, 3000);
-        } else {
-            const error = await response.json();
-            errorDiv.textContent = error.message || 'Error al actualizar contraseña';
-            errorDiv.style.display = 'block';
+        if (error) {
+            throw error;
         }
+
+        // Éxito
+        successDiv.textContent = '¡Contraseña actualizada exitosamente!';
+        successDiv.style.display = 'block';
+        document.getElementById('resetForm').reset();
+
+        setTimeout(() => {
+            window.close();
+        }, 3000);
+
     } catch (error) {
-        errorDiv.textContent = 'Error de conexión. Intenta nuevamente.';
+        console.error(error);
+        errorDiv.textContent = error.message || 'Error al actualizar contraseña';
         errorDiv.style.display = 'block';
     } finally {
         submitBtn.disabled = false;
